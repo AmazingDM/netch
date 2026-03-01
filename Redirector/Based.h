@@ -21,7 +21,10 @@
 #include <mstcpip.h>
 #include <Windows.h>
 
-#include <nfapi.h>
+#ifndef _C_API
+#define _C_API
+#endif
+#include "nfapi.h"
 
 using namespace std;
 
