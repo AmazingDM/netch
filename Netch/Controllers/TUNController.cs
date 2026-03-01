@@ -12,6 +12,9 @@ using static Netch.Interops.tun2socks;
 
 namespace Netch.Controllers
 {
+    /// <summary>
+    ///     Controller for tun2socks mode lifecycle and route orchestration.
+    /// </summary>
     public class TUNController : IModeController
     {
         private readonly DNSController _aioDnsController = new();
@@ -45,7 +48,7 @@ namespace Netch.Controllers
                 _serverRemoteAddress = null;
 
             _outbound = NetRoute.GetBestRouteTemplate();
-            CheckDriver();
+            await CheckDriverAsync();
 
             // Wait for adapter to be created
             for (var i = 0; i < 20; i++)
@@ -129,13 +132,16 @@ namespace Netch.Controllers
             await Task.WhenAll(tasks);
         }
 
-        private void CheckDriver()
+        /// <summary>
+        ///     Ensures the system wintun.dll matches bundled version before creating adapters.
+        /// </summary>
+        private async Task CheckDriverAsync()
         {
             string binDriver = Path.Combine(Global.NetchDir, Constants.WintunDllFile);
             string sysDriver = $@"{Environment.SystemDirectory}\wintun.dll";
 
-            var binHash = Utils.Utils.Sha256CheckSumAsync(binDriver).Result;
-            var sysHash = Utils.Utils.Sha256CheckSumAsync(sysDriver).Result;
+            var binHash = await Utils.Utils.Sha256CheckSumAsync(binDriver);
+            var sysHash = await Utils.Utils.Sha256CheckSumAsync(sysDriver);
             Log.Information("Built-in  wintun.dll Hash: {Hash}", binHash);
             Log.Information("Installed wintun.dll Hash: {Hash}", sysHash);
             if (binHash == sysHash)

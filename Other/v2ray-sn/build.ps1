@@ -1,6 +1,7 @@
 Set-Location (Split-Path $MyInvocation.MyCommand.Path -Parent)
 
-git clone https://github.com/SagerNet/v2ray-core.git -b 'v5.0.16' src
+$version = 'v5.0.16'
+git clone https://github.com/SagerNet/v2ray-core.git -b $version src
 if ( -Not $? ) {
     exit $lastExitCode
 }
@@ -23,7 +24,6 @@ $Env:GOROOT_FINAL='/usr'
 
 $Env:GOOS='windows'
 $Env:GOARCH='amd64'
-go get -u ./...
 go mod tidy
 go build -a -trimpath -asmflags '-s -w' -ldflags '-s -w -buildid=' -o '..\..\release\v2ray-sn.exe' '.\main'
 exit $lastExitCode

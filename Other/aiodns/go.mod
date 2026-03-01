@@ -1,6 +1,6 @@
 module aiodns
 
-go 1.17
+go 1.26
 
 require github.com/miekg/dns v1.1.43
 

@@ -1,94 +1,109 @@
 name: Netch Release CI
+
 on:
   push:
     tags:
-      - '*.*.*'
+      - "*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
     name: Build
     runs-on: windows-2022
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
-      - name: Checksum
-        shell: pwsh
-        run: |
-          echo "SOURCE_NETCH_SHA256=$(.\sha256.ps1 .\Netch)" | Out-File -Append -Encoding UTF8 -FilePath $Env:GITHUB_ENV
-          echo "SOURCE_OTHER_SHA256=$(.\sha256.ps1 .\Other)" | Out-File -Append -Encoding UTF8 -FilePath $Env:GITHUB_ENV
-          echo "SOURCE_REDIRECTOR_SHA256=$(.\sha256.ps1 .\Redirector)" | Out-File -Append -Encoding UTF8 -FilePath $Env:GITHUB_ENV
-          echo "SOURCE_ROUTEHELPER_SHA256=$(.\sha256.ps1 .\RouteHelper)" | Out-File -Append -Encoding UTF8 -FilePath $Env:GITHUB_ENV
-
-      - name: Cache Netch
-        uses: actions/cache@v3
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
         with:
-          key: Netch-${{ runner.os }}-Netch-${{ env.SOURCE_NETCH_SHA256 }}
-          path: |
-            .\Netch\bin
-
-      - name: Cache Redirector
-        uses: actions/cache@v3
-        with:
-          key: Netch-${{ runner.os }}-Redirector-${{ env.SOURCE_REDIRECTOR_SHA256 }}
-          path: |
-            .\Redirector\bin
-
-      - name: Cache RouteHelper
-        uses: actions/cache@v3
-        with:
-          key: Netch-${{ runner.os }}-RouteHelper-${{ env.SOURCE_ROUTEHELPER_SHA256 }}
-          path: |
-            .\RouteHelper\bin
-
-      - name: Check Other
-        id: check_other
-        uses: andstor/file-existence-action@v2
-        with:
-          files: .\other\release\aiodns.bin
+          dotnet-version: 10.0.x
 
       - name: Setup Go
-        uses: actions/setup-go@v3
-        if: steps.check_other.outputs.files_exists == 'false'
+        uses: actions/setup-go@v6
         with:
-          go-version: stable
+          go-version: 1.26.x
 
       - name: Setup C++
         uses: msys2/setup-msys2@v2
-        if: steps.check_other.outputs.files_exists == 'false'
         with:
           update: true
           release: true
           install: base-devel git mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-libevent mingw-w64-x86_64-pcre2 mingw-w64-x86_64-freetype mingw-w64-x86_64-libpng mingw-w64-x86_64-bzip2 mingw-w64-x86_64-openssl mingw-w64-x86_64-mbedtls mingw-w64-x86_64-libsodium mingw-w64-x86_64-c-ares mingw-w64-x86_64-boost mingw-w64-x86_64-libmariadbclient unzip p7zip autoconf automake libtool
 
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        if: steps.check_other.outputs.files_exists == 'false'
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: stable
           profile: minimal
 
-      - name: Build
-        shell: pwsh
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Cache Netch
+        uses: actions/cache@v5
+        with:
+          key: Netch-${{ runner.os }}-Netch-${{ hashFiles('Netch/**', 'common.props') }}
+          path: .\Netch\bin
+
+      - name: Cache Other
+        uses: actions/cache@v5
+        with:
+          key: Netch-${{ runner.os }}-Other-${{ hashFiles('Other/**') }}
+          path: .\Other\release
+
+      - name: Cache Redirector
+        uses: actions/cache@v5
+        with:
+          key: Netch-${{ runner.os }}-Redirector-${{ hashFiles('Redirector/**') }}
+          path: .\Redirector\bin
+
+      - name: Cache RouteHelper
+        uses: actions/cache@v5
+        with:
+          key: Netch-${{ runner.os }}-RouteHelper-${{ hashFiles('RouteHelper/**') }}
+          path: .\RouteHelper\bin
+
+      - name: Restore
         run: |
-          .\build.ps1 -Configuration Release -OutputPath release
+          dotnet restore .\Netch\Netch.csproj
+          dotnet restore .\Tests\Tests.csproj
+          dotnet restore .\RedirectorTester\RedirectorTester.csproj
+
+      - name: Build Managed Projects
+        run: |
+          dotnet build .\Netch\Netch.csproj -c Release --no-restore -p:Platform=x64
+          dotnet build .\RedirectorTester\RedirectorTester.csproj -c Release --no-restore
+
+      - name: Run Tests
+        run: dotnet test .\Tests\Tests.csproj -c Release --no-build
+
+      - name: Build Release Bundle
+        run: .\build.ps1 -Configuration Release -OutputPath release
 
       - name: Package
-        shell: pwsh
         run: |
           7z a -mx9 Netch.7z release
           7z rn Netch.7z release Netch
 
       - name: Checksum
-        shell: pwsh
         run: |
-          $hash=(Get-FileHash Netch.7z -Algorithm SHA256).Hash.ToLower()
-          echo "NETCH_SHA256=$hash" | Out-File -Append -Encoding UTF8 -FilePath $Env:GITHUB_ENV
+          $hash = (Get-FileHash Netch.7z -Algorithm SHA256).Hash.ToLower()
+          "NETCH_SHA256=$hash" | Out-File -Append -Encoding utf8 -FilePath $Env:GITHUB_ENV
 
       - name: Release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           prerelease: ${{ contains(github.ref, '-') }}
           draft: false
@@ -98,11 +113,11 @@ jobs:
             [![](https://img.shields.io/badge/Telegram-Channel-blue)](https://t.me/netch_channel) [![](https://img.shields.io/badge/Telegram-Group-green)](https://t.me/netch_group)
             ## Changelogs
             * This is an automated deployment of GitHub Actions, the change log should be updated manually soon
-            
+
             ## 更新日志
             * 这是 GitHub Actions 自动化部署，更新日志应该很快会手动更新
 
             ## 校验和
             | 文件名 | SHA256 |
             | :- | :- |
-            | Netch.7z | ${{ env.Netch_SHA256 }} |
+            | Netch.7z | ${{ env.NETCH_SHA256 }} |

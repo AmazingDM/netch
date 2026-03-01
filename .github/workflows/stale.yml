@@ -2,6 +2,7 @@ name: Close stale issues and PRs
 on:
   schedule:
     - cron: "0 0 * * *"
+  workflow_dispatch:
 
 jobs:
   close-issues:
@@ -10,7 +11,7 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-      - uses: actions/stale@v7
+      - uses: actions/stale@v10
         with:
           days-before-issue-stale: 30
           days-before-issue-close: 14

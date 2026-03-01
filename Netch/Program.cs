@@ -24,11 +24,10 @@ public static class Program
     internal static HWND ConsoleHwnd { get; private set; }
 
 #pragma warning disable VSTHRD002
-    // VSTHRD002: Avoid problematic synchronous waits
-    // Main never re-called, so we can ignore this
+    // VSTHRD002: WinForms entrypoint needs a controlled sync boundary.
 
     [STAThread]
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         // handle arguments
         if (args.Contains(Constants.Parameter.ForceUpdate))
@@ -60,12 +59,12 @@ public static class Program
                 Directory.CreateDirectory(item);
 
         // load configuration
-        Configuration.LoadAsync().Wait();
+        await Configuration.LoadAsync();
 
         // check if the program is already running
         if (!SingleInstance.TryStartSingleInstance())
         {
-            SingleInstance.SendMessageToFirstInstanceAsync(Constants.Parameter.Show).GetAwaiter().GetResult();
+            await SingleInstance.SendMessageToFirstInstanceAsync(Constants.Parameter.Show);
             Environment.Exit(0);
             return;
         }

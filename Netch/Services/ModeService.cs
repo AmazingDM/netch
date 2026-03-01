@@ -6,12 +6,18 @@ using Netch.Utils;
 
 namespace Netch.Services;
 
+/// <summary>
+///     Loads, sorts and persists mode definitions from the mode directory.
+/// </summary>
 public class ModeService
 {
     public static readonly ModeService Instance = new();
 
     public string ModeDirectoryFullName => Path.Combine(Global.NetchDir, "mode");
 
+    /// <summary>
+    ///     Converts an absolute mode file path to a relative path under the mode root.
+    /// </summary>
     public string GetRelativePath(string fullName)
     {
         var length = ModeDirectoryFullName.Length;
@@ -21,11 +27,17 @@ public class ModeService
         return fullName.Substring(length);
     }
 
+    /// <summary>
+    ///     Converts a relative mode file path to an absolute path under the mode root.
+    /// </summary>
     public string GetFullPath(string relativeName)
     {
         return Path.Combine(ModeDirectoryFullName, relativeName);
     }
 
+    /// <summary>
+    ///     Reloads all modes from disk and refreshes the main form mode list.
+    /// </summary>
     public void Load()
     {
         Global.Modes.Clear();
@@ -62,8 +74,7 @@ public class ModeService
 
     private static void SortCollection()
     {
-        // TODO better sort need to discuss
-        // TODO replace Mode Collection type
+        // Stable ordinal sort keeps UI deterministic and language-independent.
         Global.Modes.Sort((a, b) => string.Compare(a.i18NRemark, b.i18NRemark, StringComparison.Ordinal));
     }
 
