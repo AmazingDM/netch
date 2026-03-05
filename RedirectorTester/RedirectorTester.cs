@@ -17,6 +17,8 @@ namespace RedirectorTester
 
             AIO_ICMPING,
 
+            AIO_DNSONLY,
+            AIO_DNSPROX,
             AIO_DNSHOST,
             AIO_DNSPORT,
 
@@ -66,14 +68,16 @@ namespace RedirectorTester
             aio_dial(NameList.AIO_DNSHOST, "1.1.1.1");
             aio_dial(NameList.AIO_DNSPORT, "53");
 
-            aio_dial(NameList.AIO_TGTHOST, "127.0.0.1");
-            aio_dial(NameList.AIO_TGTPORT, "1080");
+            aio_dial(NameList.AIO_TGTHOST, "192.168.123.1");
+            aio_dial(NameList.AIO_TGTPORT, "23456");
             aio_dial(NameList.AIO_TGTUSER, "");
             aio_dial(NameList.AIO_TGTPASS, "");
 
             aio_dial(NameList.AIO_CLRNAME, "");
+            aio_dial(NameList.AIO_BYPNAME, "RedirectorTester");
             aio_dial(NameList.AIO_ADDNAME, "Telegram");
             aio_dial(NameList.AIO_ADDNAME, "NatTypeTester");
+            aio_dial(NameList.AIO_ADDNAME, "msedge");
 
             aio_init();
             Console.ReadLine();
